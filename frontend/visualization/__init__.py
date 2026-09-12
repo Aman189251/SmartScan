@@ -1,0 +1,1 @@
+"""PyQtGraph visualisation components."""

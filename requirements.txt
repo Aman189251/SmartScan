@@ -1,0 +1,35 @@
+# Smart Scan Strategy - validated environment pins
+# Target: Windows 10/11 64-bit, Python 3.12.x 64-bit, CPU-only.
+
+# --- Desktop UI ---
+PySide6==6.10.1
+pyqtgraph==0.13.7
+matplotlib==3.10.6
+
+# --- Numerics / data ---
+numpy==2.2.6
+pandas==2.3.2
+scipy==1.16.2
+
+# --- Machine learning ---
+scikit-learn==1.7.2
+xgboost==3.0.5
+joblib==1.5.2
+
+# --- Local service layer ---
+fastapi==0.116.1
+uvicorn==0.35.0
+pydantic==2.11.7
+httpx==0.28.1
+
+# --- Persistence ---
+SQLAlchemy==2.0.43
+
+# --- Config ---
+PyYAML==6.0.2
+
+# --- Testing ---
+pytest==8.4.1
+
+# --- Packaging ---
+pyinstaller==6.15.0

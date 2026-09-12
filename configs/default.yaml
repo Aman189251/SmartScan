@@ -1,0 +1,109 @@
+# Smart Scan Strategy - default configuration
+# Every value here is a simulation / research parameter. Nothing in this file
+# describes real equipment, real emitters or real operating frequencies.
+
+environment:
+  n_bands: 32                 # abstract sensing regions B01..B32
+  n_slots: 2000               # discrete time slots per run
+  scenario: mixed             # periodic | burst | intermittent | agile | mixed | shift | noise
+  seed: 20260909
+  cycle_length: 120           # slots per temporal cycle (drives periodic structure)
+  # The scenario preset owns the shape of the environment: how many activity
+  # sources it has, how dense they are, and where its change points fall.
+  # Uncommenting any of these forces that value onto EVERY scenario, which is
+  # useful for a controlled sweep and misleading otherwise.
+  # base_activity: 0.12       # baseline probability a band is active in a slot
+  # n_active_sources: 6       # number of synthetic activity sources
+  # change_points: [1000]     # slots at which the environment redraws its pattern
+
+receiver:
+  pd: 0.90                    # P(HIT | ACTIVE)          - simulation parameter only
+  pfa: 0.03                   # P(HIT | INACTIVE)        - simulation parameter only
+  capacity: 1                 # bands observable per slot (instantaneous bandwidth limit)
+  scan_duration: 1            # slots consumed by one scan
+  revisit_lockout: 0          # slots a band is unavailable after being scanned
+
+features:
+  version: "fe-1.0"
+  short_window: 8
+  medium_window: 24
+  long_window: 64
+  ewma_fast: 0.30
+  ewma_slow: 0.05
+  cycle_length: 120
+
+ml:
+  horizon: 1                  # label = activity at t + horizon
+  label_source: truth         # truth | observation  (truth is offline-synthetic only)
+  candidate_k: 5              # candidate set size handed to the mathematical layer
+  xgboost:
+    n_estimators: 400
+    max_depth: 6
+    learning_rate: 0.06
+    subsample: 0.9
+    colsample_bytree: 0.9
+    min_child_weight: 2
+    reg_lambda: 1.5
+    n_jobs: 0
+  random_forest:
+    n_estimators: 300
+    max_depth: 14
+    min_samples_leaf: 5
+    n_jobs: -1
+
+bayesian:
+  prior_strength_k: 10.0      # alpha0 = k * p_ml, beta0 = k * (1 - p_ml)
+  prior_mode: dynamic         # dynamic (re-anchor prior each step) | static
+  decay_lambda: 0.995         # exponential evidence decay, 0 < lambda <= 1
+  drift_decay_lambda: 0.90    # stronger forgetting while drift is flagged
+  min_evidence: 0.0
+
+decision:
+  strategy: smart_scan        # random | round_robin | greedy_ml | ucb | thompson | smart_scan
+  ucb_c: 1.4
+  exploration_floor: 0.02     # minimum probability of a forced exploration scan
+
+adaptive:
+  enabled: true
+  window: 120                 # sliding window for performance / calibration tracking
+  drift_signal: belief_error  # belief_error | model_error  (see docs/VALIDATION.md)
+  drift_min_evidence: 4.0     # belief_error: evidence a band needs before it counts
+  drift_detector: windowed    # windowed | page_hinkley
+  drift_window: 30            # recent scans compared against the baseline
+  drift_reference: 120        # baseline scans preceding the recent window
+  drift_z_threshold: 3.0      # standard errors of degradation before an alarm
+  drift_min_gap: 0.05         # absolute Brier degradation also required
+  drift_smoothing: 25         # scans averaged before page_hinkley sees an error
+  page_hinkley_delta: 0.01    # page_hinkley only
+  page_hinkley_lambda: 2.0    # page_hinkley only
+  drift_cooldown: 150         # slots of accelerated forgetting after a drift alarm
+  acceptance:
+    min_observations: 200
+    max_brier: 0.20           # recent Brier score must be at or below this
+    max_calibration_error: 0.10
+    min_agreement: 0.55       # shadow recommendation agreement with realised value
+    stability_window: 3       # consecutive evaluations that must pass
+  max_influence: 0.50         # ceiling on adaptive influence in ADAPTIVE_ASSISTED
+
+reward:
+  detection_reward: 1.0
+  false_alarm_penalty: 0.5
+  miss_penalty: 0.2
+  scan_cost: 0.01
+
+evaluation:
+  adaptation_tolerance: 0.90  # fraction of pre-change performance to count as recovered
+  rolling_window: 100
+
+database:
+  url: "sqlite:///smartscan.db"
+  batch_size: 200             # rows buffered before a flush
+  echo: false
+
+api:
+  host: "127.0.0.1"
+  port: 8077
+
+logging:
+  level: INFO
+  file: "smartscan.log"
